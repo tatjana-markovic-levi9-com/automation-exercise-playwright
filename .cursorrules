@@ -1,0 +1,290 @@
+# Playwright Test Automation - Cursor Rules
+
+## Project Overview
+This is a Playwright test automation project following the Page Object Model (POM) pattern with TypeScript. All code should be maintainable, scalable, and follow industry best practices.
+
+---
+
+## Core Principles
+
+### 1. Page Object Model (POM) - MANDATORY
+- **ALL page interactions MUST be in Page Objects, NEVER in test files**
+- Test files should ONLY contain: test logic, assertions, and test data setup
+- Page Objects encapsulate all locators and interactions for a specific page
+- Each page should extend `BasePage` class
+- No direct page.locator() or page interactions in test files
+
+### 2. DRY Principle (Don't Repeat Yourself)
+- Extract repeated code into reusable methods
+- Use BasePage for common functionality
+- Create utility functions for shared logic
+- Use test fixtures for common setup/teardown
+- Avoid duplicating locators or actions
+
+### 3. Assertions ONLY in Test Files
+- Page Objects should NEVER contain `expect()` statements
+- Page Objects provide locators and actions
+- Tests perform assertions using exposed public locators
+- Exception: Page Objects can use `waitFor()` for synchronization
+
+---
+
+## Page Object Structure
+
+### Locator Definition
+- **Define ALL locators in the constructor**
+- Use **private** locators for internal page interactions
+- Use **public** locators for test assertions
+- Never define locators outside the constructor
+
+### Locator Priority (Most to Least Reliable)
+1. `data-qa` or `data-testid` attributes
+2. Role + name: `page.getByRole('button', { name: 'Submit' })`
+3. Label text: `page.getByLabel('Email')`
+4. Placeholder: `page.getByPlaceholder('Enter email')`
+5. Text content: `page.locator('text=Login')`
+6. CSS selectors (last resort)
+7. **Never use XPath** unless absolutely necessary
+
+### Locator Best Practices
+- Use data-qa attributes when available (most reliable)
+- Prefer user-visible text for buttons/links
+- Avoid CSS selectors tied to styling (e.g., `.btn-primary`)
+- Never chain locators unnecessarily
+
+### Page Object Methods
+- Each page must have a `navigateToPage()` method
+- Create action methods with clear, descriptive names
+- Create helper methods for waiting (e.g., `waitForSuccess()`)
+- Methods should do ONE thing and do it well
+- All methods must be async when interacting with page
+
+---
+
+## BasePage Requirements
+
+### Universal BasePage Must Include (Basic Methods Only):
+
+**Navigation**
+- `navigateTo(url: string)` - Navigate to any URL
+
+**Waiting Methods**
+- `waitForPageLoad()` - Wait for page to load
+- `waitForElement(selector: string)` - Wait for element to be visible
+- `isElementVisible(selector: string): Promise<boolean>` - Check element visibility
+
+**Utilities**
+- `scrollToElement(locator: Locator)` - Scroll element into view
+
+**Note:** Keep BasePage minimal with only truly universal methods. Application-specific methods (like logout, authentication checks, etc.) should be implemented in individual page objects where needed.
+
+---
+
+## Test Structure
+
+### Test Organization
+- Use `test.describe()` to group related tests
+- Use `test.beforeEach()` for setup that runs before each test
+- Use `test.beforeAll()` for expensive setup (e.g., creating existing users)
+- Use nested `test.describe()` blocks for sub-groups with specific preconditions
+
+### Test Best Practices
+- **Use AAA Pattern** - Arrange, Act, Assert
+- **One assertion per test** (or closely related assertions)
+- **Descriptive test names** - `should [expected behavior] when [condition]`
+- **Independent tests** - Each test should be able to run alone
+- **Clean test data** - Use unique data for each test run
+- Tests should be able to run in parallel
+
+### Test Naming Convention
+- Test files: `camelCase.spec.ts` (e.g., `login.spec.ts`, `signup.spec.ts`)
+- Test descriptions: Start with "should" and describe expected behavior
+
+---
+
+## Test Data Management
+
+### Test Data Structure
+- Create `TEST_EMAILS` object with predefined test scenarios
+- Use getters for dynamic values (e.g., `get valid()` to generate unique emails)
+- Create `USER` object for predefined user data
+- Include timestamps in emails for uniqueness: `faker.string.alphanumeric(5) + Date.now() + '@testmail.com'`
+
+### Test Data Functions
+- Create `generateUserData()` function that accepts partial overrides
+- Use `Partial<UserData>` for optional overrides
+- Support overriding specific fields while keeping defaults for others
+- Always use Faker for random data generation
+
+### Test Data Best Practices
+- Define constants for fixed test data
+- Use getters for dynamic values
+- Type all data with interfaces
+- Export interfaces for reuse across files
+
+---
+
+## Naming Conventions
+
+### Files
+- Page Objects: `PascalCase.ts` (e.g., `LoginPage.ts`, `SignUpPage.ts`)
+- Tests: `camelCase.spec.ts` (e.g., `login.spec.ts`, `signup.spec.ts`)
+- Utils: `camelCase.ts` (e.g., `testData.ts`, `helpers.ts`)
+
+### Classes & Methods
+- Classes: `PascalCase` (e.g., `class LoginPage`)
+- Methods: `camelCase` (e.g., `async navigateToLogin()`)
+- Private locators: `camelCase` with `private readonly`
+- Public locators: `camelCase` with `public readonly`
+
+### Variables
+- Constants: `UPPER_SNAKE_CASE` (e.g., `TEST_EMAILS`, `USER`)
+- Variables: `camelCase` (e.g., `const userData = ...`)
+- Interfaces: `PascalCase` (e.g., `interface UserData`)
+
+---
+
+## TypeScript Requirements
+
+- **Always use TypeScript** - No plain JavaScript
+- **Type everything** - No `any` types
+- **Use interfaces** for complex data structures
+- **Use Partial<T>** for optional overrides
+- **Export types** from testData for reuse
+- **Async/await** for all Playwright operations
+- **Use const** by default, `let` only when reassignment needed
+- Properly type all function parameters and return values
+
+---
+
+## Error Handling & Debugging
+
+### Waits
+- Use explicit waits with conditions: `element.waitFor({ state: 'visible' })`
+- Use page load waits: `page.waitForLoadState('networkidle')`
+- **Avoid hard-coded delays** - Never use `page.waitForTimeout()` unless absolutely necessary
+
+### Screenshots & Traces
+- Screenshots and videos should be configured in `playwright.config.ts`
+- Automatically capture on failure
+- Manual screenshots use `BasePage.takeScreenshot()` method
+- Enable trace on retry for debugging
+
+### Timeouts
+- Set reasonable timeouts in config
+- Override timeouts for specific slow operations with `test.setTimeout()`
+- Document why custom timeouts are needed
+
+---
+
+## Configuration Best Practices
+
+### playwright.config.ts Requirements
+- Set `baseURL` for the application under test
+- Configure `fullyParallel: true`
+- Set `retries` for CI environment
+- Configure `trace: 'on-first-retry'`
+- Configure `screenshot: 'only-on-failure'`
+- Configure `video: 'retain-on-failure'`
+- Include multiple browser projects (chromium, firefox, webkit)
+
+---
+
+## Playwright MCP Integration
+
+When generating tests using Playwright MCP:
+- **Always follow POM** - Generate both page object and test file
+- **Use existing patterns** - Match the style of existing code
+- **Include proper imports** - Page objects, test data, etc.
+- **Add JSDoc comments** - Document methods and parameters
+- **Generate typed test data** - Use interfaces
+- **Create reusable methods** - Not one-off code
+- **Follow project structure** - Place files in correct directories
+- Ensure generated code follows all rules in this file
+
+---
+
+## Code Review Checklist
+
+Before considering code complete, verify:
+- [ ] All page interactions are in Page Objects
+- [ ] No assertions (`expect()`) in Page Objects
+- [ ] All locators defined in constructor
+- [ ] Page Object extends BasePage
+- [ ] Test uses AAA pattern (Arrange, Act, Assert)
+- [ ] Test data is unique (uses timestamps/random values)
+- [ ] Methods have clear, descriptive names
+- [ ] No code duplication (DRY principle)
+- [ ] TypeScript types are defined (no `any`)
+- [ ] JSDoc comments for complex methods
+- [ ] No hard-coded waits (`waitForTimeout`)
+- [ ] Tests are independent and can run in any order
+- [ ] Proper use of async/await
+- [ ] Locators use data-qa attributes when available
+- [ ] Public vs private locators are correctly defined
+
+---
+
+## Anti-Patterns to AVOID
+
+### Never Do This:
+- ❌ Direct page interactions in test files (use Page Objects)
+- ❌ Assertions (`expect()`) in Page Objects
+- ❌ Hard-coded test data (use generators with timestamps)
+- ❌ Code duplication (extract to reusable methods)
+- ❌ Defining locators outside constructor
+- ❌ Using `any` type
+- ❌ Hard-coded waits with `waitForTimeout()`
+- ❌ Chaining locators unnecessarily
+- ❌ Using XPath selectors
+- ❌ CSS selectors based on styling classes
+- ❌ Tests that depend on each other
+- ❌ Mixing test logic with page logic
+
+---
+
+## Performance Best Practices
+
+- Tests should be independent and run in parallel
+- Reuse browser context with `beforeAll` for expensive setup
+- Minimize navigation - navigate only when necessary
+- Use API for test data setup when available (faster than UI)
+- Smart waits - wait for specific conditions, not arbitrary timeouts
+- Limit screenshots to failures or critical steps only
+
+---
+
+## Documentation Requirements
+
+### JSDoc Comments Required For:
+- Complex methods or business logic
+- Public API methods in Page Objects
+- Non-obvious workarounds or hacks
+- Methods with multiple parameters
+
+### JSDoc Format:
+- Include description of what the method does
+- Document all parameters with `@param`
+- Document return type if not obvious with `@returns`
+
+---
+
+## Summary - Golden Rules
+
+1. ✅ ALL page interactions in Page Objects
+2. ✅ ALL assertions in test files
+3. ✅ Follow DRY - don't repeat code
+4. ✅ Use TypeScript with proper types (no `any`)
+5. ✅ Generate unique test data with timestamps
+6. ✅ All Page Objects extend BasePage
+7. ✅ Tests are independent and run in parallel
+8. ✅ Use descriptive, clear naming
+9. ✅ Use explicit waits, no hard-coded delays
+10. ✅ Keep tests simple and focused
+11. ✅ Define all locators in constructor
+12. ✅ Prefer data-qa attributes for locators
+13. ✅ Use proper TypeScript types everywhere
+14. ✅ Follow the AAA pattern in tests
+15. ✅ No code duplication anywhere
+
+**When in doubt, look at existing code in the project and maintain consistency!**
