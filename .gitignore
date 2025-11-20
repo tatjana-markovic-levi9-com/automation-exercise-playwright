@@ -11,6 +11,10 @@ node_modules/
 screenshots/
 videos/
 
+# Allure
+allure-results/
+allure-report/
+
 # IDE
 .vscode/
 .idea/
