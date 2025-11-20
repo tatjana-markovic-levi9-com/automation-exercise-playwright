@@ -207,31 +207,5 @@ export class SignUpPage extends BasePage {
     await this.submitAccountCreation();
   }
 
-  async createUserAndLogout(userData: {
-    name: string;
-    email: string;
-    gender: 'Mr' | 'Mrs';
-    password: string;
-    dateOfBirth: { day: string; month: string; year: string };
-    firstName: string;
-    lastName: string;
-    company?: string;
-    address1: string;
-    address2?: string;
-    country: string;
-    state: string;
-    city: string;
-    zipcode: string;
-    mobileNumber: string;
-    newsletter?: boolean;
-    specialOffers?: boolean;
-  }) {
-    await this.navigateToSignUp();
-    await this.fillAndSubmitSignUpForm(userData);
-    await this.clickContinue();
-    await this.page.locator('a[href="/logout"]').click();
-    await this.page.waitForLoadState('networkidle');
-  }
-
 }
 

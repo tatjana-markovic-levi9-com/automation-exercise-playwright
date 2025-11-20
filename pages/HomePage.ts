@@ -3,7 +3,9 @@ import { BasePage } from './BasePage';
 
 export class HomePage extends BasePage {
   private readonly signupLoginLink: Locator;
-  private readonly logoutLink: Locator;
+  private readonly cartLink: Locator;
+  private readonly productsLink: Locator;
+  public readonly logoutLink: Locator;
   
   public readonly loggedInAsText: Locator;
 
@@ -11,6 +13,8 @@ export class HomePage extends BasePage {
     super(page);
     
     this.signupLoginLink = page.locator('a[href="/login"]');
+    this.cartLink = page.locator('header a[href="/view_cart"]');
+    this.productsLink = page.locator('header a[href="/products"]');
     this.logoutLink = page.locator('a[href="/logout"]');
     this.loggedInAsText = page.locator('text=Logged in as');
   }
@@ -25,13 +29,18 @@ export class HomePage extends BasePage {
     await this.waitForPageLoad();
   }
 
+  async clickCartLink() {
+    await this.cartLink.click();
+    await this.waitForPageLoad();
+  }
+
+  async clickProductsLink() {
+    await this.productsLink.click();
+    await this.waitForPageLoad();
+  }
+
   async logout() {
     await this.logoutLink.click();
     await this.waitForPageLoad();
   }
-
-  async isUserLoggedIn(): Promise<boolean> {
-    return await this.loggedInAsText.isVisible();
-  }
 }
-

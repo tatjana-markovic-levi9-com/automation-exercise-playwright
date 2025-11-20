@@ -13,6 +13,31 @@ export const USER = {
   get emailExisting(): string {
     return TEST_EMAILS.existing;
   },
+  existingUserEmail: 'test123456@yopmail.com',
+  existingUserPassword: 'Test123456',
+  emailInvalid: 'wrong@testmail.com',
+  passwordInvalid: 'WrongPassword123',
+};
+
+export const MESSAGE = {
+  loginError: 'Your email or password is incorrect!',
+  signUpError: 'Email Address already exist!',
+};
+
+export const PRODUCTS = {
+  blueTop: 'Blue Top',
+  menTshirt: 'Men Tshirt',
+  sleevelessDress: 'Sleeveless Dress',
+  winterTop: 'Winter Top',
+  fancyGreenTop: 'Fancy Green Top',
+};
+
+export const PAYMENT_CARD = {
+  nameOnCard: 'Test User',
+  cardNumber: '4532015112830366',
+  cvc: '123',
+  expiryMonth: '12',
+  expiryYear: '2028',
 };
 
 export function generateRandomEmail(): string {

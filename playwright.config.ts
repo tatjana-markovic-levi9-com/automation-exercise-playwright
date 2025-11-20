@@ -50,11 +50,10 @@ export default defineConfig({
       },
     },
 
-    // Temporarily disabled due to context teardown issues in headed mode
-    // {
-    //   name: 'firefox',
-    //   use: { ...devices['Desktop Firefox'] },
-    // },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] },
+    },
 
     {
       name: 'webkit',

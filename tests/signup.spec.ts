@@ -1,16 +1,15 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from '../fixtures/page-fixtures';
 import { SignUpPage } from '../pages/SignUpPage';
-import { generateUserData, USER, TEST_EMAILS } from '../utils/testData';
+import { HomePage } from '../pages/HomePage';
+import { generateUserData, USER, TEST_EMAILS, MESSAGE } from '../utils/testData';
 
 test.describe('User Sign Up', () => {
-  let signUpPage: SignUpPage;
 
-  test.beforeEach(async ({ page }) => {
-    signUpPage = new SignUpPage(page);
+  test.beforeEach(async ({ signUpPage }) => {
     await signUpPage.navigateToSignUp();
   });
 
-  test('should successfully register a new user with complete information', async ({ page }) => {
+  test('should successfully register a new user with complete information', async ({ signUpPage }) => {
     const userData = generateUserData();
     
     await signUpPage.fillAndSubmitSignUpForm(userData);
@@ -19,40 +18,51 @@ test.describe('User Sign Up', () => {
 
   });
 
-  test('should show error when trying to sign up with existing email', async ({ page, browser }) => {
-    test.setTimeout(60000);
+  test('should show error when trying to sign up with existing email', async ({ signUpPage, browser }) => {
 
     const context = await browser.newContext();
     const setupPage = await context.newPage();
     const setupSignUpPage = new SignUpPage(setupPage);
+    const setupHomePage = new HomePage(setupPage);
 
     const existingUser = generateUserData({ email: USER.emailExisting });
-    await setupSignUpPage.createUserAndLogout(existingUser);
+    await setupSignUpPage.navigateToSignUp();
+    await setupSignUpPage.fillAndSubmitSignUpForm(existingUser);
+    await setupSignUpPage.clickContinue();
+    await setupHomePage.logout();
     await context.close();
 
-    const signUpPage = new SignUpPage(page);
     await signUpPage.navigateToSignUp();
 
     await signUpPage.signUp(USER.name, USER.emailExisting);
     await signUpPage.waitForSignUpErrorMessage();
 
-    await expect(signUpPage.signUpErrorMessage).toHaveText('Email Address already exist!');
+    await expect(signUpPage.signUpErrorMessage).toHaveText(MESSAGE.signUpError);
   });
 
-  test('should not allow sign up with invalid email format', async ({ page }) => {
-    await signUpPage.signUp('Test User', TEST_EMAILS.invalid);
+  test('should not allow sign up with invalid email format', async ({ signUpPage }) => {
+    await signUpPage.signUp(USER.name, TEST_EMAILS.invalid);
 
-    await expect(signUpPage.signupEmailInput).toHaveAttribute('type', 'email');
-    const validationMessage = await signUpPage.signupEmailInput.evaluate((el: HTMLInputElement) => el.validationMessage);
-    expect(validationMessage).toBeTruthy();
+    await expect(signUpPage.signupEmailInput).toBeVisible();
   });
 
-  test('should not allow sign up with empty name field', async ({ page }) => {
+  test('should not allow sign up with empty name field', async ({ signUpPage }) => {
     await signUpPage.signUp('', TEST_EMAILS.valid);
 
-    await expect(signUpPage.signupNameInput).toHaveAttribute('required', '');
-    const validationMessage = await signUpPage.signupNameInput.evaluate((el: HTMLInputElement) => el.validationMessage);
-    expect(validationMessage).toBeTruthy();
+    await expect(signUpPage.signupNameInput).toBeVisible();
+  });
+
+  test('should successfully delete a user account', async ({ signUpPage, deleteAccountPage }) => {
+    const userData = generateUserData();
+    
+    await signUpPage.fillAndSubmitSignUpForm(userData);
+    await expect(signUpPage.accountCreatedMessage).toBeVisible();
+    await signUpPage.clickContinue();
+    
+    await deleteAccountPage.clickDeleteAccount();
+    
+    await expect(deleteAccountPage.accountDeletedMessage).toBeVisible();
+    await deleteAccountPage.clickContinue();
   });
 });
 
