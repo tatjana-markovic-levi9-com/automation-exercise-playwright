@@ -11,6 +11,10 @@ jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pages: write
+      id-token: write
     
     steps:
     - name: Checkout repository
@@ -56,6 +60,8 @@ jobs:
         github_token: ${{ secrets.GITHUB_TOKEN }}
         publish_branch: gh-pages
         publish_dir: allure-history
+        keep_files: false
+        force_orphan: true
 
     - name: Upload Allure results as artifact
       uses: actions/upload-artifact@v4
