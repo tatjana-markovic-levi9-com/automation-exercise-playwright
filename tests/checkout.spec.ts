@@ -12,25 +12,37 @@ test.describe('Checkout Flow', { tag: '@checkout' }, () => {
     homePage,
     loginPage
   }) => {    
-    await loginPage.navigateToLogin();
-    await loginPage.login(USER.existingUserEmail, USER.existingUserPassword);
+    await test.step('Login to the application', async () => {
+      await loginPage.navigateToLogin();
+      await loginPage.login(USER.existingUserEmail, USER.existingUserPassword);
+    });
     
-    await homePage.clickProductsLink();
-    await productsPage.addProductToCart(PRODUCTS.blueTop);
-    await productsPage.clickViewCartFromModal();
+    await test.step('Add product to cart', async () => {
+      await homePage.clickProductsLink();
+      await productsPage.addProductToCart(PRODUCTS.blueTop);
+      await productsPage.clickViewCartFromModal();
+    });
     
-    await cartPage.proceedToCheckout();
-    await expect(checkoutPage.addressDetailsHeading).toBeVisible();
-    await expect(checkoutPage.reviewOrderHeading).toBeVisible();
+    await test.step('Proceed to checkout and verify order details', async () => {
+      await cartPage.proceedToCheckout();
+      await expect(checkoutPage.addressDetailsHeading).toBeVisible();
+      await expect(checkoutPage.reviewOrderHeading).toBeVisible();
+    });
     
-    await checkoutPage.clickPlaceOrder();
-    await expect(paymentPage.paymentHeading).toBeVisible();
+    await test.step('Place order and navigate to payment', async () => {
+      await checkoutPage.clickPlaceOrder();
+      await expect(paymentPage.paymentHeading).toBeVisible();
+    });
     
-    await paymentPage.fillPaymentDetails(PAYMENT_CARD);
-    await paymentPage.clickPayAndConfirmOrder();
+    await test.step('Complete payment details', async () => {
+      await paymentPage.fillPaymentDetails(PAYMENT_CARD);
+      await paymentPage.clickPayAndConfirmOrder();
+    });
     
-    await expect(orderConfirmationPage.orderPlacedHeading).toBeVisible();
-    await expect(orderConfirmationPage.successMessage).toBeVisible();
+    await test.step('Verify order confirmation', async () => {
+      await expect(orderConfirmationPage.orderPlacedHeading).toBeVisible();
+      await expect(orderConfirmationPage.successMessage).toBeVisible();
+    });
   });
 
 });
