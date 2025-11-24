@@ -2,7 +2,6 @@ name: Scheduled Playwright Tests
 
 on:
   schedule:
-    # Run tests every day at 9 AM UTC (adjust as needed)
     - cron: '0 9 * * *'
   workflow_dispatch:
 
@@ -14,10 +13,12 @@ jobs:
       contents: write
       pages: write
       id-token: write
-    
+
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Setup Node.js
       uses: actions/setup-node@v4
@@ -35,14 +36,20 @@ jobs:
       continue-on-error: true
       run: npm run test
 
+    # ---------------------------
+    #     Get Allure history
+    # ---------------------------
     - name: Get Allure history
       uses: actions/checkout@v4
       if: always()
       continue-on-error: true
       with:
         ref: gh-pages
-        path: gh-pages
+        path: allure-history
 
+    # ---------------------------
+    #  Generate new Allure report
+    # ---------------------------
     - name: Generate Allure Report
       uses: simple-elf/allure-report-action@master
       if: always()
@@ -52,20 +59,9 @@ jobs:
         allure_history: allure-history
         keep_reports: 20
 
-    - name: Create gh-pages branch if not exists
-      if: always()
-      continue-on-error: true
-      run: |
-        git fetch origin gh-pages || true
-        if ! git show-ref --verify --quiet refs/remotes/origin/gh-pages; then
-          echo "Creating gh-pages branch..."
-          git checkout --orphan gh-pages
-          git reset --hard
-          git commit --allow-empty -m "Initialize gh-pages branch"
-          git push origin gh-pages
-          git checkout main
-        fi
-
+    # ---------------------------
+    #      Deploy to GitHub Pages
+    # ---------------------------
     - name: Deploy Allure report to GitHub Pages
       if: always()
       uses: peaceiris/actions-gh-pages@v3
@@ -74,7 +70,10 @@ jobs:
         publish_branch: gh-pages
         publish_dir: allure-history
 
-    - name: Upload Allure results as artifact
+    # ---------------------------
+    #         Upload artifacts
+    # ---------------------------
+    - name: Upload Allure results
       uses: actions/upload-artifact@v4
       if: always()
       with:
@@ -82,7 +81,7 @@ jobs:
         path: allure-results
         retention-days: 30
 
-    - name: Upload Playwright HTML report as artifact
+    - name: Upload Playwright HTML report
       uses: actions/upload-artifact@v4
       if: always()
       with:
@@ -90,12 +89,12 @@ jobs:
         path: playwright-report
         retention-days: 30
 
+    # ---------------------------
+    #        Summary message
+    # ---------------------------
     - name: Add Allure report link to summary
       if: always()
       run: |
-        echo "## 🕐 Scheduled Test Results" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "✅ Allure Report: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/${{ github.run_number }}" >> $GITHUB_STEP_SUMMARY
-        echo "" >> $GITHUB_STEP_SUMMARY
+        echo "## 🕒 Scheduled Test Results" >> $GITHUB_STEP_SUMMARY
+        echo "🔗 **Allure Report:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" >> $GITHUB_STEP_SUMMARY
         echo "📅 Run time: $(date)" >> $GITHUB_STEP_SUMMARY
-
