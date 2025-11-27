@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, test } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class PaymentPage extends BasePage {
@@ -15,12 +15,12 @@ export class PaymentPage extends BasePage {
     super(page);
     
     this.paymentHeading = page.locator('h2:has-text("Payment")');
-    this.nameOnCardInput = page.locator('input[data-qa="name-on-card"]');
-    this.cardNumberInput = page.locator('input[data-qa="card-number"]');
-    this.cvcInput = page.locator('input[data-qa="cvc"]');
-    this.expiryMonthInput = page.locator('input[data-qa="expiry-month"]');
-    this.expiryYearInput = page.locator('input[data-qa="expiry-year"]');
-    this.payButton = page.locator('button[data-qa="pay-button"]');
+    this.nameOnCardInput = page.getByTestId('name-on-card');
+    this.cardNumberInput = page.getByTestId('card-number');
+    this.cvcInput = page.getByTestId('cvc');
+    this.expiryMonthInput = page.getByTestId('expiry-month');
+    this.expiryYearInput = page.getByTestId('expiry-year');
+    this.payButton = page.getByTestId('pay-button');
   }
 
   /**
@@ -34,16 +34,20 @@ export class PaymentPage extends BasePage {
     expiryMonth: string;
     expiryYear: string;
   }) {
-    await this.nameOnCardInput.fill(cardDetails.nameOnCard);
-    await this.cardNumberInput.fill(cardDetails.cardNumber);
-    await this.cvcInput.fill(cardDetails.cvc);
-    await this.expiryMonthInput.fill(cardDetails.expiryMonth);
-    await this.expiryYearInput.fill(cardDetails.expiryYear);
+    await test.step('Fill payment details', async () => {
+      await this.nameOnCardInput.fill(cardDetails.nameOnCard);
+      await this.cardNumberInput.fill(cardDetails.cardNumber);
+      await this.cvcInput.fill(cardDetails.cvc);
+      await this.expiryMonthInput.fill(cardDetails.expiryMonth);
+      await this.expiryYearInput.fill(cardDetails.expiryYear);
+    });
   }
 
   async clickPayAndConfirmOrder() {
-    await this.payButton.click();
-    await this.page.waitForURL('**/payment_done/**', { timeout: 10000 });
+    await test.step('Pay and confirm order', async () => {
+      await this.payButton.click();
+      await this.page.waitForURL('**/payment_done/**', { timeout: 10000 });
+    });
   }
 }
 

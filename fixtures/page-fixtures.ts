@@ -2,6 +2,8 @@ import { test as base } from '@playwright/test';
 import { HomePage } from '../pages/HomePage';
 import { LoginPage } from '../pages/LoginPage';
 import { SignUpPage } from '../pages/SignUpPage';
+import { SignUpInitialPage } from '../pages/SignUpInitialPage';
+import { AccountInformationPage } from '../pages/AccountInformationPage';
 import { DeleteAccountPage } from '../pages/DeleteAccountPage';
 import { ProductsPage } from '../pages/ProductsPage';
 import { CartPage } from '../pages/CartPage';
@@ -14,6 +16,8 @@ type MyFixtures = {
   homePage: HomePage;
   loginPage: LoginPage;
   signUpPage: SignUpPage;
+  signUpInitialPage: SignUpInitialPage;
+  accountInformationPage: AccountInformationPage;
   deleteAccountPage: DeleteAccountPage;
   productsPage: ProductsPage;
   cartPage: CartPage;
@@ -37,6 +41,16 @@ export const test = base.extend<MyFixtures>({
   signUpPage: async ({ page }, use) => {
     const signUpPage = new SignUpPage(page);
     await use(signUpPage);
+  },
+
+  signUpInitialPage: async ({ page }, use) => {
+    const signUpInitialPage = new SignUpInitialPage(page);
+    await use(signUpInitialPage);
+  },
+
+  accountInformationPage: async ({ page }, use) => {
+    const accountInformationPage = new AccountInformationPage(page);
+    await use(accountInformationPage);
   },
 
   deleteAccountPage: async ({ page }, use) => {

@@ -11,8 +11,8 @@ export class DeleteAccountPage extends BasePage {
     super(page);
     
     this.deleteAccountLink = page.locator('a[href="/delete_account"]');
-    this.continueButton = page.locator('a[data-qa="continue-button"]');
-    this.accountDeletedMessage = page.locator('h2[data-qa="account-deleted"]');
+    this.continueButton = page.getByTestId('continue-button');
+    this.accountDeletedMessage = page.getByTestId('account-deleted');
   }
 
   async clickDeleteAccount() {

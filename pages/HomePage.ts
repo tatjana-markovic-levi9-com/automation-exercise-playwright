@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, test } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class HomePage extends BasePage {
@@ -30,17 +30,23 @@ export class HomePage extends BasePage {
   }
 
   async clickCartLink() {
-    await this.cartLink.click();
-    await this.waitForPageLoad();
+    await test.step('Navigate to cart', async () => {
+      await this.cartLink.click();
+      await this.waitForPageLoad();
+    });
   }
 
   async clickProductsLink() {
-    await this.productsLink.click();
-    await this.waitForPageLoad();
+    await test.step('Navigate to products page', async () => {
+      await this.productsLink.click();
+      await this.waitForPageLoad();
+    });
   }
 
   async logout() {
-    await this.logoutLink.click();
-    await this.waitForPageLoad();
+    await test.step('Logout from application', async () => {
+      await this.logoutLink.click();
+      await this.waitForPageLoad();
+    });
   }
 }

@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, test } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class CheckoutPage extends BasePage {
@@ -15,8 +15,10 @@ export class CheckoutPage extends BasePage {
   }
 
   async clickPlaceOrder() {
-    await this.placeOrderButton.click();
-    await this.page.waitForURL('**/payment', { timeout: 30000 });
+    await test.step('Place order', async () => {
+      await this.placeOrderButton.click();
+      await this.page.waitForURL('**/payment', { timeout: 30000 });
+    });
   }
 }
 

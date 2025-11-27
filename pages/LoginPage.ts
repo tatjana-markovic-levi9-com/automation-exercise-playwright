@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, test } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class LoginPage extends BasePage {
@@ -10,9 +10,9 @@ export class LoginPage extends BasePage {
   constructor(page: Page) {
     super(page);
     
-    this.loginEmailInput = page.locator('input[data-qa="login-email"]');
-    this.loginPasswordInput = page.locator('input[data-qa="login-password"]');
-    this.loginButton = page.locator('button[data-qa="login-button"]');
+    this.loginEmailInput = page.getByTestId('login-email');
+    this.loginPasswordInput = page.getByTestId('login-password');
+    this.loginButton = page.getByTestId('login-button');
     this.loginErrorMessage = page.locator('form[action="/login"] p', { hasText: 'Your email or password is incorrect!' });
   }
 
@@ -22,10 +22,12 @@ export class LoginPage extends BasePage {
   }
 
   async login(email: string, password: string) {
-    await this.loginEmailInput.fill(email);
-    await this.loginPasswordInput.fill(password);
-    await this.loginButton.click();
-    await this.waitForPageLoad();
+    await test.step('Login with credentials', async () => {
+      await this.loginEmailInput.fill(email);
+      await this.loginPasswordInput.fill(password);
+      await this.loginButton.click();
+      await this.waitForPageLoad();
+    });
   }
 
   async waitForLoginErrorMessage() {

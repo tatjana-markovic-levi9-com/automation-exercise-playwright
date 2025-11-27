@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, test } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class CartPage extends BasePage {
@@ -27,11 +27,13 @@ export class CartPage extends BasePage {
    * Delete a product from cart by its name
    */
   async deleteProduct(productName: string) {
-    const productRow = this.getProductInCart(productName);
-    const deleteButton = productRow.locator('.cart_delete a');
-    await deleteButton.click();
-    
-    await productRow.waitFor({ state: 'hidden', timeout: 10000 });
+    await test.step(`Remove "${productName}" from cart`, async () => {
+      const productRow = this.getProductInCart(productName);
+      const deleteButton = productRow.locator('.cart_delete a');
+      await deleteButton.click();
+      
+      await productRow.waitFor({ state: 'hidden', timeout: 10000 });
+    });
   }
 
   /**
@@ -48,8 +50,10 @@ export class CartPage extends BasePage {
 
 
   async proceedToCheckout() {
-    await this.proceedToCheckoutButton.click();
-    await this.waitForPageLoad();
+    await test.step('Proceed to checkout', async () => {
+      await this.proceedToCheckoutButton.click();
+      await this.waitForPageLoad();
+    });
   }
 }
 

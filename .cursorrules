@@ -58,6 +58,8 @@ This is a Playwright test automation project following the Page Object Model (PO
 - Create helper methods for waiting (e.g., `waitForSuccess()`)
 - Methods should do ONE thing and do it well
 - All methods must be async when interacting with page
+- **Wrap key actions in `test.step()`** for better reporting and traceability
+- **Use objects for methods with 6+ parameters** - Pass an interface/type instead of individual parameters
 
 ---
 
@@ -80,6 +82,26 @@ This is a Playwright test automation project following the Page Object Model (PO
 
 ---
 
+## Test Fixtures
+
+### Fixture Usage (MANDATORY)
+- **NEVER import Page Objects directly in test files**
+- **ALWAYS use fixtures** defined in `fixtures/page-fixtures.ts`
+- Test files should import `test` and `expect` from page-fixtures, not from @playwright/test
+- Fixtures provide dependency injection and ensure clean test setup
+
+---
+
+## Test Steps (`test.step`)
+
+### test.step Usage Rules
+- **Use test.step in Page Objects ONLY** - Never in test files
+- Wrap key page actions in `test.step()` for better reporting
+- Test files should call page methods directly without additional test.step wrappers
+- This provides clean, readable test reports with action-level granularity
+
+---
+
 ## Test Structure
 
 ### Test Organization
@@ -91,9 +113,13 @@ This is a Playwright test automation project following the Page Object Model (PO
 ### Test Best Practices
 - **Use AAA Pattern** - Arrange, Act, Assert
 - **One assertion per test** (or closely related assertions)
+- **Each test MUST end with assertion** - No tests without verification
 - **Descriptive test names** - `should [expected behavior] when [condition]`
 - **Independent tests** - Each test should be able to run alone
 - **Clean test data** - Use unique data for each test run
+- **No conditional logic in tests** - Tests should have a linear flow (no if/else statements)
+- **Use fixtures, not direct imports** - NEVER import Page Objects directly in tests
+- **Use test.step in Page Objects ONLY** - Never use test.step in test files
 - Tests should be able to run in parallel
 
 ### Test Naming Convention
@@ -120,7 +146,9 @@ This is a Playwright test automation project following the Page Object Model (PO
 - Define constants for fixed test data
 - Use getters for dynamic values
 - Type all data with interfaces
-- Export interfaces for reuse across files
+- **ALWAYS export and reuse interfaces** - NEVER define the same interface in multiple files
+- Import interfaces from `testData.ts` or other utility files
+- Use objects for methods accepting 6+ parameters
 
 ---
 
@@ -209,6 +237,12 @@ When generating tests using Playwright MCP:
 Before considering code complete, verify:
 - [ ] All page interactions are in Page Objects
 - [ ] No assertions (`expect()`) in Page Objects
+- [ ] Tests use fixtures, NOT direct Page Object imports
+- [ ] `test.step()` used in Page Objects, NOT in test files
+- [ ] No conditional logic in tests (no if/else)
+- [ ] Each test ends with at least one assertion
+- [ ] Interfaces are reused, not redefined
+- [ ] Methods with 6+ params use objects instead
 - [ ] All locators defined in constructor
 - [ ] Page Object extends BasePage
 - [ ] Test uses AAA pattern (Arrange, Act, Assert)
@@ -229,7 +263,13 @@ Before considering code complete, verify:
 
 ### Never Do This:
 - ❌ Direct page interactions in test files (use Page Objects)
+- ❌ Importing Page Objects directly in tests (use fixtures)
 - ❌ Assertions (`expect()`) in Page Objects
+- ❌ Using `test.step()` in test files (use in Page Objects only)
+- ❌ Conditional logic in tests (if/else, switch statements)
+- ❌ Tests without assertions at the end
+- ❌ Defining interfaces multiple times (reuse from testData.ts)
+- ❌ Methods with 6+ individual parameters (use objects instead)
 - ❌ Hard-coded test data (use generators with timestamps)
 - ❌ Code duplication (extract to reusable methods)
 - ❌ Defining locators outside constructor
@@ -273,18 +313,23 @@ Before considering code complete, verify:
 
 1. ✅ ALL page interactions in Page Objects
 2. ✅ ALL assertions in test files
-3. ✅ Follow DRY - don't repeat code
-4. ✅ Use TypeScript with proper types (no `any`)
-5. ✅ Generate unique test data with timestamps
-6. ✅ All Page Objects extend BasePage
-7. ✅ Tests are independent and run in parallel
-8. ✅ Use descriptive, clear naming
-9. ✅ Use explicit waits, no hard-coded delays
-10. ✅ Keep tests simple and focused
-11. ✅ Define all locators in constructor
-12. ✅ Prefer data-qa attributes for locators
-13. ✅ Use proper TypeScript types everywhere
-14. ✅ Follow the AAA pattern in tests
-15. ✅ No code duplication anywhere
+3. ✅ Use fixtures ONLY - NEVER import Page Objects directly in tests
+4. ✅ Use `test.step()` in Page Objects ONLY - NEVER in test files
+5. ✅ NO conditional logic in tests (no if/else statements)
+6. ✅ Each test MUST end with assertion
+7. ✅ REUSE interfaces - NEVER define them multiple times
+8. ✅ Use objects for methods with 6+ parameters
+9. ✅ Follow DRY - don't repeat code
+10. ✅ Use TypeScript with proper types (no `any`)
+11. ✅ Generate unique test data with timestamps
+12. ✅ All Page Objects extend BasePage
+13. ✅ Tests are independent and run in parallel
+14. ✅ Use descriptive, clear naming
+15. ✅ Use explicit waits, no hard-coded delays
+16. ✅ Keep tests simple and focused
+17. ✅ Define all locators in constructor
+18. ✅ Prefer data-qa attributes for locators
+19. ✅ Follow the AAA pattern in tests
+20. ✅ No code duplication anywhere
 
 **When in doubt, look at existing code in the project and maintain consistency!**

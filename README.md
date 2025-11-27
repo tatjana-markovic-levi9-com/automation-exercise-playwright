@@ -189,15 +189,20 @@ Key settings in `playwright.config.ts`:
 ## 🎯 Best Practices Implemented
 
 1. ✅ **Page Object Model** - All page interactions in page objects, never in tests
-2. ✅ **DRY Principle** - No code duplication, reusable methods
-3. ✅ **Type Safety** - Full TypeScript with no `any` types
-4. ✅ **Random Data** - Unique test data prevents conflicts
-5. ✅ **Test Independence** - Tests can run in any order
-6. ✅ **Descriptive Names** - Clear, self-documenting code
-7. ✅ **AAA Pattern** - Arrange, Act, Assert structure
-8. ✅ **Proper Waits** - Explicit waits, no hard-coded delays
-9. ✅ **Assertions in Tests Only** - Page objects never contain `expect()`
-10. ✅ **Clean Fixtures** - Centralized dependency injection
+2. ✅ **Fixture-Based Testing** - Use fixtures for dependency injection, never import pages directly
+3. ✅ **Test Steps in Page Objects** - Use `test.step()` in page objects for better reporting
+4. ✅ **No Conditional Logic in Tests** - Tests follow linear flow without if/else statements
+5. ✅ **Every Test Has Assertions** - All tests end with verification
+6. ✅ **Interface Reuse** - Interfaces defined once and reused across files
+7. ✅ **Object Parameters** - Methods with 6+ parameters use objects for clarity
+8. ✅ **DRY Principle** - No code duplication, reusable methods
+9. ✅ **Type Safety** - Full TypeScript with no `any` types
+10. ✅ **Random Data** - Unique test data prevents conflicts
+11. ✅ **Test Independence** - Tests can run in any order
+12. ✅ **Descriptive Names** - Clear, self-documenting code
+13. ✅ **AAA Pattern** - Arrange, Act, Assert structure
+14. ✅ **Proper Waits** - Explicit waits, no hard-coded delays
+15. ✅ **Assertions in Tests Only** - Page objects never contain `expect()`
 
 ## 🆕 Adding New Tests
 
@@ -252,14 +257,19 @@ To add a new test:
 
 When adding new tests or pages:
 1. Follow the POM structure and guidelines in `.cursorrules`
-2. Use TypeScript with proper types (no `any`)
-3. Define all locators in constructor
-4. Add JSDoc comments for complex methods
-5. Keep page objects clean (no assertions - use `expect()` only in tests)
-6. Write independent, parallelizable tests
-7. Use test fixtures for page object injection
-8. Add test tags for easy filtering
-9. Ensure tests pass individually and in parallel
+2. **Use fixtures, NEVER import pages directly** in test files
+3. **Use `test.step()` in page objects ONLY**, not in tests
+4. **No conditional logic in tests** (no if/else statements)
+5. **Each test must end with assertion**
+6. **Reuse interfaces** - import from `testData.ts`, don't redefine
+7. **Use objects for 6+ parameters** instead of individual arguments
+8. Use TypeScript with proper types (no `any`)
+9. Define all locators in constructor
+10. Add JSDoc comments for complex methods
+11. Keep page objects clean (no assertions - use `expect()` only in tests)
+12. Write independent, parallelizable tests
+13. Add test tags for easy filtering
+14. Ensure tests pass individually and in parallel
 
 ## 📝 Notes
 

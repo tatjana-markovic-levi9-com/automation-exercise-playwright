@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, test } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class SearchPage extends BasePage {
@@ -18,9 +18,11 @@ export class SearchPage extends BasePage {
   }
 
   async searchForProduct(searchTerm: string) {
-    await this.searchInput.fill(searchTerm);
-    await this.searchButton.click();
-    await this.waitForPageLoad();
+    await test.step(`Search for "${searchTerm}"`, async () => {
+      await this.searchInput.fill(searchTerm);
+      await this.searchButton.click();
+      await this.waitForPageLoad();
+    });
   }
 
   async getSearchResultsCount(): Promise<number> {

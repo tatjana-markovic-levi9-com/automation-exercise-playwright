@@ -1,4 +1,4 @@
-import { Page, Locator } from '@playwright/test';
+import { Page, Locator, test } from '@playwright/test';
 import { BasePage } from './BasePage';
 
 export class ProductsPage extends BasePage {
@@ -27,6 +27,19 @@ export class ProductsPage extends BasePage {
     const product = this.page.locator('.productinfo').filter({ hasText: productName }).first();
     const addToCartButton = product.locator('a:has-text("Add to cart")');
     await addToCartButton.click();
+  }
+
+  /**
+   * Adds a product to cart and continues shopping
+   * Consolidates: addProductToCart + wait for modal + continue shopping
+   * @param productName - The name of the product to add (e.g., 'Blue Top')
+   */
+  async addProductToCartAndContinue(productName: string) {
+    await test.step(`Add "${productName}" to cart and continue shopping`, async () => {
+      await this.addProductToCart(productName);
+      await this.waitForContinueShoppingButton();
+      await this.clickContinueShopping();
+    });
   }
 
   async clickContinueShopping() {
