@@ -2,119 +2,108 @@ name: Playwright Tests with Allure Report
 
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
+    branches: [main, master]
   schedule:
-    - cron: '0 9 * * *'  # Daily at 9 AM UTC
+    - cron: '0 9 * * *'
   workflow_dispatch:
+    inputs:
+      test_grep:
+        description: 'Run specific tests (e.g., @smoke, @login, @cart)'
+        required: false
+        type: string
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Set retention and naming based on event type
+  RETENTION_DAYS: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' && 14 || 30 }}
+  ARTIFACT_SUFFIX: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
 
 jobs:
   test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
-      pages: write
-      id-token: write
 
     steps:
-    - name: Checkout repository
-      uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
+      - uses: actions/checkout@v4
 
-    - name: Setup Node.js
-      uses: actions/setup-node@v4
-      with:
-        node-version: '24.11.1'
-        cache: 'npm'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: 'npm'
 
-    - name: Install dependencies
-      run: npm ci
+      - run: npm ci
 
-    - name: Install Playwright Browsers
-      run: npx playwright install --with-deps
+      # Simplified Playwright caching
+      - name: Get Playwright version
+        id: pw-version
+        run: echo "version=$(npm pkg get devDependencies.@playwright/test | tr -d '"')" >> $GITHUB_OUTPUT
 
-    - name: Run Playwright tests
-      continue-on-error: true
-      run: npm run test
+      - name: Cache Playwright browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
 
-    # ---------------------------
-    #     Get Allure history
-    # ---------------------------
-    - name: Get Allure history
-      uses: actions/checkout@v4
-      if: always()
-      continue-on-error: true
-      with:
-        ref: gh-pages
-        path: gh-pages
+      - name: Install Playwright browsers
+        run: npx playwright install --with-deps
 
-    # ---------------------------
-    #  Generate new Allure report
-    # ---------------------------
-    - name: Generate Allure Report
-      uses: simple-elf/allure-report-action@master
-      if: always()
-      id: allure-report
-      with:
-        allure_results: allure-results
-        gh_pages: gh-pages
-        allure_report: allure-report
-        allure_history: allure-history
-        keep_reports: 20
+      # Run tests
+      - name: Run Playwright tests
+        run: npx playwright test ${{ github.event.inputs.test_grep && format('--grep "{0}"', github.event.inputs.test_grep) || '' }}
+        continue-on-error: true
 
-    # ---------------------------
-    #      Deploy to GitHub Pages
-    # ---------------------------
-    - name: Deploy Allure report to GitHub Pages
-      if: always()
-      uses: peaceiris/actions-gh-pages@v3
-      with:
-        github_token: ${{ secrets.GITHUB_TOKEN }}
-        publish_branch: gh-pages
-        publish_dir: allure-history
+      # Generate Allure report
+      - name: Generate Allure Report
+        if: always()
+        run: npx allure generate allure-results -o allure-report --clean
 
-    # ---------------------------
-    #         Upload artifacts
-    # ---------------------------
-    - name: Upload Allure results
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: allure-results-${{ github.event_name == 'schedule' && 'scheduled' || github.run_number }}
-        path: allure-results
-        retention-days: 30
+      # Single upload step for each artifact type
+      - name: Upload Allure report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-report-${{ env.ARTIFACT_SUFFIX }}
+          path: allure-report
+          retention-days: ${{ env.RETENTION_DAYS }}
 
-    - name: Upload Playwright HTML report
-      uses: actions/upload-artifact@v4
-      if: always()
-      with:
-        name: playwright-report-${{ github.event_name == 'schedule' && 'scheduled' || github.run_number }}
-        path: playwright-report
-        retention-days: 30
+      - name: Upload Allure results
+        uses: actions/upload-artifact@v4
+        if: always() && (github.event_name == 'push' || github.event_name == 'schedule')
+        with:
+          name: allure-results-${{ env.ARTIFACT_SUFFIX }}
+          path: allure-results
+          retention-days: ${{ env.RETENTION_DAYS }}
 
-    - name: Upload test videos
-      uses: actions/upload-artifact@v4
-      if: failure()
-      with:
-        name: test-videos-${{ github.run_number }}
-        path: test-results
-        retention-days: 30
+      - name: Upload Playwright report
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ env.ARTIFACT_SUFFIX }}
+          path: playwright-report
+          retention-days: ${{ env.RETENTION_DAYS }}
 
-    # ---------------------------
-    #        Summary message
-    # ---------------------------
-    - name: Add Allure report link to summary
-      if: always()
-      run: |
-        if [ "${{ github.event_name }}" = "schedule" ]; then
-          echo "## 🕒 Scheduled Test Results" >> $GITHUB_STEP_SUMMARY
-          echo "📅 Run time: $(date)" >> $GITHUB_STEP_SUMMARY
-        else
-          echo "## Test Results 📊" >> $GITHUB_STEP_SUMMARY
-          echo "📦 Artifacts are attached to this run." >> $GITHUB_STEP_SUMMARY
-        fi
-        echo "" >> $GITHUB_STEP_SUMMARY
-        echo "🔗 **Allure Report:** https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" >> $GITHUB_STEP_SUMMARY
+      - name: Upload test videos
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-videos-${{ github.run_number }}
+          path: test-results
+          retention-days: 30
+
+      # Simplified summary
+      - name: Add test results summary
+        if: always()
+        run: |
+          echo "## 📊 Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Retention:** ${{ env.RETENTION_DAYS }} days" >> $GITHUB_STEP_SUMMARY
+          ${{ github.event.inputs.test_grep && format('echo "**Filter:** `{0}`" >> $GITHUB_STEP_SUMMARY', github.event.inputs.test_grep) || '' }}
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
+          echo "- Allure Report, Playwright Report, Test Videos (on failure)" >> $GITHUB_STEP_SUMMARY
