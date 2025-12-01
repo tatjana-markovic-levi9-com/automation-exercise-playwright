@@ -27,6 +27,7 @@ permissions:
 env:
   RETENTION_DAYS: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' && 14 || 30 }}
   ARTIFACT_SUFFIX: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  PAGES_URL: ${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
 
 jobs:
   test:
@@ -59,6 +60,20 @@ jobs:
       - name: Run Playwright tests
         run: npx playwright test ${{ github.event.inputs.test_grep && format('--grep "{0}"', github.event.inputs.test_grep) || '' }}
         continue-on-error: true
+
+      # Download history from previous GitHub Pages deployment
+      - name: Download Allure history
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p allure-results/history
+          curl -sSfL "https://${{ env.PAGES_URL }}/history/history.json" -o allure-results/history/history.json || true
+          curl -sSfL "https://${{ env.PAGES_URL }}/history/history-trend.json" -o allure-results/history/history-trend.json || true
+          curl -sSfL "https://${{ env.PAGES_URL }}/history/categories-trend.json" -o allure-results/history/categories-trend.json || true
+          curl -sSfL "https://${{ env.PAGES_URL }}/history/duration-trend.json" -o allure-results/history/duration-trend.json || true
+          curl -sSfL "https://${{ env.PAGES_URL }}/history/retry-trend.json" -o allure-results/history/retry-trend.json || true
+          echo "History files downloaded:"
+          ls -la allure-results/history/ || true
 
       - name: Generate Allure Report
         if: always()
@@ -118,7 +133,7 @@ jobs:
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🌐 Live Report" >> $GITHUB_STEP_SUMMARY
-            echo "View the Allure report at: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" >> $GITHUB_STEP_SUMMARY
+            echo "View the Allure report at: https://${{ env.PAGES_URL }}/" >> $GITHUB_STEP_SUMMARY
           fi
 
   # Deploy to GitHub Pages (skip for PRs)
