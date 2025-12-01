@@ -13,7 +13,7 @@ test.describe('User Sign Up', () => {
     
     await signUpPage.fillAndSubmitSignUpForm(userData);
     
-    await expect(signUpPage.accountCreatedMessage, 'Account created message should be visible').toBeVisible();
+    await expect(signUpPage.accountCreatedMessage, 'Account created message is visible').toBeVisible();
   });
 
   test('should show error when trying to sign up with existing email', async ({ signUpPage, browser }) => {
@@ -29,31 +29,31 @@ test.describe('User Sign Up', () => {
     await signUpPage.signUp(USER.name, USER.emailExisting);
     await signUpPage.waitForSignUpErrorMessage();
 
-    await expect(signUpPage.signUpErrorMessage, 'Error message should indicate email already exists').toHaveText(MESSAGE.signUpError);
+    await expect(signUpPage.signUpErrorMessage, 'Error message indicates email already exists').toHaveText(MESSAGE.signUpError);
   });
 
   test('should not allow sign up with invalid email format', async ({ signUpPage }) => {
     await signUpPage.signUp(USER.name, TEST_EMAILS.invalid);
 
-    await expect(signUpPage.signupEmailInput, 'Sign up form should still be visible').toBeVisible();
+    await expect(signUpPage.signupEmailInput, 'Sign up form still is visible').toBeVisible();
   });
 
   test('should not allow sign up with empty name field', async ({ signUpPage }) => {
     await signUpPage.signUp('', TEST_EMAILS.valid);
 
-    await expect(signUpPage.signupNameInput, 'Sign up form should still be visible').toBeVisible();
+    await expect(signUpPage.signupNameInput, 'Sign up form still is visible').toBeVisible();
   });
 
   test('should successfully delete a user account', async ({ signUpPage, deleteAccountPage }) => {
     const userData = generateUserData();
     
     await signUpPage.fillAndSubmitSignUpForm(userData);
-    await expect(signUpPage.accountCreatedMessage, 'Account should be created').toBeVisible();
+    await expect(signUpPage.accountCreatedMessage, 'Account is created').toBeVisible();
 
     await signUpPage.clickContinue();
     await deleteAccountPage.clickDeleteAccount();
 
-    await expect(deleteAccountPage.accountDeletedMessage, 'Account deleted message should be visible').toBeVisible();
+    await expect(deleteAccountPage.accountDeletedMessage, 'Account deleted message is visible').toBeVisible();
   });
 });
 

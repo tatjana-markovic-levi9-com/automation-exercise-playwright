@@ -13,18 +13,18 @@ test.describe('Checkout Flow', { tag: '@checkout' }, () => {
     
     await cartPage.proceedToCheckout();
     
-    await expect(checkoutPage.addressDetailsHeading, 'Address details section should be visible').toBeVisible();
-    await expect(checkoutPage.reviewOrderHeading, 'Review order section should be visible').toBeVisible();
+    await expect(checkoutPage.addressDetailsHeading, 'Address details section is visible').toBeVisible();
+    await expect(checkoutPage.reviewOrderHeading, 'Review order section is visible').toBeVisible();
     
     await checkoutPage.clickPlaceOrder();
     
-    await expect(paymentPage.paymentHeading, 'Payment page should be visible').toBeVisible();
+    await expect(paymentPage.paymentHeading, 'Payment page is visible').toBeVisible();
     
     await paymentPage.fillPaymentDetails(PAYMENT_CARD);
     await paymentPage.clickPayAndConfirmOrder();
     
-    await expect(orderConfirmationPage.orderPlacedHeading, 'Order placed heading should be visible').toBeVisible();
-    await expect(orderConfirmationPage.successMessage, 'Success message should be visible').toBeVisible();
+    await expect(orderConfirmationPage.orderPlacedHeading, 'Order placed heading is visible').toBeVisible();
+    await expect(orderConfirmationPage.successMessage, 'Success message is visible').toBeVisible();
   });
 
 });
