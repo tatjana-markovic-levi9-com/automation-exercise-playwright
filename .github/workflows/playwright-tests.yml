@@ -18,8 +18,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Required permissions for GitHub Pages deployment
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
 env:
-  # Set retention and naming based on event type
   RETENTION_DAYS: ${{ github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' && 14 || 30 }}
   ARTIFACT_SUFFIX: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
 
@@ -38,7 +43,6 @@ jobs:
 
       - run: npm ci
 
-      # Simplified Playwright caching
       - name: Get Playwright version
         id: pw-version
         run: echo "version=$(npm pkg get devDependencies.@playwright/test | tr -d '"')" >> $GITHUB_OUTPUT
@@ -52,17 +56,15 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps
 
-      # Run tests
       - name: Run Playwright tests
         run: npx playwright test ${{ github.event.inputs.test_grep && format('--grep "{0}"', github.event.inputs.test_grep) || '' }}
         continue-on-error: true
 
-      # Generate Allure report
       - name: Generate Allure Report
         if: always()
         run: npx allure generate allure-results -o allure-report --clean
 
-      # Single upload step for each artifact type
+      # Upload artifacts
       - name: Upload Allure report
         uses: actions/upload-artifact@v4
         if: always()
@@ -95,7 +97,13 @@ jobs:
           path: test-results
           retention-days: 30
 
-      # Simplified summary
+      # Upload Allure report for GitHub Pages
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        if: always() && github.event_name != 'pull_request'
+        with:
+          path: allure-report
+
       - name: Add test results summary
         if: always()
         run: |
@@ -107,3 +115,23 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "- Allure Report, Playwright Report, Test Videos (on failure)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event_name }}" != "pull_request" ]; then
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "### 🌐 Live Report" >> $GITHUB_STEP_SUMMARY
+            echo "View the Allure report at: https://${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}/" >> $GITHUB_STEP_SUMMARY
+          fi
+
+  # Deploy to GitHub Pages (skip for PRs)
+  deploy:
+    if: always() && github.event_name != 'pull_request'
+    needs: test
+    runs-on: ubuntu-latest
+    
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
