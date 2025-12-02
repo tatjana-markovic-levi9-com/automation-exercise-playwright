@@ -30,7 +30,53 @@ env:
   PAGES_URL: ${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
 
 jobs:
+  install:
+    name: Install Dependencies
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    outputs:
+      playwright-version: ${{ steps.pw-version.outputs.version }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+
+      - name: Cache node_modules
+        id: cache-node-modules
+        uses: actions/cache@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
+
+      - name: Install npm dependencies
+        if: steps.cache-node-modules.outputs.cache-hit != 'true'
+        run: npm ci
+
+      - name: Get Playwright version
+        id: pw-version
+        run: echo "version=$(npm pkg get devDependencies.@playwright/test | tr -d '"')" >> $GITHUB_OUTPUT
+
+      - name: Cache Playwright browsers
+        id: cache-playwright
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-browsers-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
+          restore-keys: |
+            playwright-browsers-${{ runner.os }}-
+
+      - name: Install Playwright browsers
+        if: steps.cache-playwright.outputs.cache-hit != 'true'
+        run: npx playwright install --with-deps
+
   test:
+    name: Run Tests
+    needs: install
     timeout-minutes: 60
     runs-on: ubuntu-latest
 
@@ -40,22 +86,22 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '24.11.1'
-          cache: 'npm'
 
-      - run: npm ci
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            node-modules-${{ runner.os }}-
 
-      - name: Get Playwright version
-        id: pw-version
-        run: echo "version=$(npm pkg get devDependencies.@playwright/test | tr -d '"')" >> $GITHUB_OUTPUT
-
-      - name: Cache Playwright browsers
-        uses: actions/cache@v4
+      - name: Restore Playwright browsers cache
+        uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
-
-      - name: Install Playwright browsers
-        run: npx playwright install --with-deps
+          key: playwright-browsers-${{ runner.os }}-${{ needs.install.outputs.playwright-version }}
+          restore-keys: |
+            playwright-browsers-${{ runner.os }}-
 
       - name: Run Playwright tests
         run: npx playwright test ${{ github.event.inputs.test_grep && format('--grep "{0}"', github.event.inputs.test_grep) || '' }}
