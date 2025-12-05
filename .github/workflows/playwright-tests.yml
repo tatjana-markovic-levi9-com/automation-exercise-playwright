@@ -34,8 +34,6 @@ jobs:
     name: Install Dependencies
     timeout-minutes: 10
     runs-on: ubuntu-latest
-    outputs:
-      playwright-version: ${{ steps.pw-version.outputs.version }}
 
     steps:
       - uses: actions/checkout@v4
@@ -50,35 +48,32 @@ jobs:
         with:
           path: node_modules
           key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            node-modules-${{ runner.os }}-
 
       - name: Install npm dependencies
         if: steps.cache-node-modules.outputs.cache-hit != 'true'
         run: npm ci
-
-      - name: Get Playwright version
-        id: pw-version
-        run: echo "version=$(npm pkg get devDependencies.@playwright/test | tr -d '"')" >> $GITHUB_OUTPUT
 
       - name: Cache Playwright browsers
         id: cache-playwright
         uses: actions/cache@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-browsers-${{ runner.os }}-${{ steps.pw-version.outputs.version }}
-          restore-keys: |
-            playwright-browsers-${{ runner.os }}-
+          key: playwright-browsers-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright browsers
         if: steps.cache-playwright.outputs.cache-hit != 'true'
         run: npx playwright install --with-deps
 
   test:
-    name: Run Tests
+    name: Run Tests and Deploy
     needs: install
     timeout-minutes: 60
     runs-on: ubuntu-latest
+    
+    # GitHub Pages environment (only used when deploying)
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
 
     steps:
       - uses: actions/checkout@v4
@@ -92,16 +87,12 @@ jobs:
         with:
           path: node_modules
           key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
-          restore-keys: |
-            node-modules-${{ runner.os }}-
 
       - name: Restore Playwright browsers cache
         uses: actions/cache/restore@v4
         with:
           path: ~/.cache/ms-playwright
-          key: playwright-browsers-${{ runner.os }}-${{ needs.install.outputs.playwright-version }}
-          restore-keys: |
-            playwright-browsers-${{ runner.os }}-
+          key: playwright-browsers-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
 
       - name: Install Playwright system dependencies
         run: npx playwright install-deps
@@ -168,6 +159,12 @@ jobs:
         with:
           path: allure-report
 
+      # Deploy to GitHub Pages (skip for PRs)
+      - name: Deploy to GitHub Pages
+        id: deployment
+        if: always() && github.event_name != 'pull_request'
+        uses: actions/deploy-pages@v4
+
       - name: Add test results summary
         if: always()
         run: |
@@ -184,18 +181,3 @@ jobs:
             echo "### 🌐 Live Report" >> $GITHUB_STEP_SUMMARY
             echo "View the Allure report at: https://${{ env.PAGES_URL }}/" >> $GITHUB_STEP_SUMMARY
           fi
-
-  # Deploy to GitHub Pages (skip for PRs)
-  deploy:
-    if: always() && github.event_name != 'pull_request'
-    needs: test
-    runs-on: ubuntu-latest
-    
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-
-    steps:
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
