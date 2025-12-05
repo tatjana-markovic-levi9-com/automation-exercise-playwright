@@ -65,15 +65,16 @@ jobs:
         run: npx playwright install --with-deps
 
   test:
-    name: Run Tests and Deploy
+    name: ${{ matrix.browser }} (Shard ${{ matrix.shard }}/3)
     needs: install
     timeout-minutes: 60
     runs-on: ubuntu-latest
     
-    # GitHub Pages environment (only used when deploying)
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+    strategy:
+      fail-fast: false
+      matrix:
+        browser: [chromium, firefox, webkit]
+        shard: [1, 2, 3]  # 3 shards per browser = 9 parallel runners total
 
     steps:
       - uses: actions/checkout@v4
@@ -97,9 +98,86 @@ jobs:
       - name: Install Playwright system dependencies
         run: npx playwright install-deps
 
-      - name: Run Playwright tests
-        run: npx playwright test ${{ github.event.inputs.test_grep && format('--grep "{0}"', github.event.inputs.test_grep) || '' }}
+      - name: Run Playwright tests (${{ matrix.browser }}, Shard ${{ matrix.shard }}/3)
+        run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/3 ${{ github.event.inputs.test_grep && format('--grep "{0}"', github.event.inputs.test_grep) || '' }}
         continue-on-error: true
+
+      # Upload test results from this runner
+      - name: Upload Allure results (${{ matrix.browser }}-${{ matrix.shard }})
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: allure-results-${{ matrix.browser }}-${{ matrix.shard }}
+          path: allure-results
+          retention-days: 1  # Short retention, will be merged
+
+      - name: Upload Playwright report (${{ matrix.browser }}-${{ matrix.shard }})
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: playwright-report-${{ matrix.browser }}-${{ matrix.shard }}
+          path: playwright-report
+          retention-days: 1  # Short retention, individual reports
+
+      - name: Upload test videos (${{ matrix.browser }}-${{ matrix.shard }})
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: test-videos-${{ matrix.browser }}-${{ matrix.shard }}
+          path: test-results
+          retention-days: 7  # Keep videos for debugging
+
+  merge-reports:
+    name: Merge Reports and Deploy
+    needs: test
+    if: always()
+    timeout-minutes: 10
+    runs-on: ubuntu-latest
+    
+    # GitHub Pages environment
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+
+      - name: Restore node_modules cache
+        uses: actions/cache/restore@v4
+        with:
+          path: node_modules
+          key: node-modules-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+
+      # Download all Allure results from all browser-shard combinations
+      - name: Download Allure results from all runners
+        uses: actions/download-artifact@v4
+        with:
+          pattern: allure-results-*
+          path: allure-results-all
+          merge-multiple: false
+
+      # Merge all runner results into one directory
+      - name: Merge Allure results from all runners
+        run: |
+          mkdir -p allure-results
+          echo "Merging results from all browser-shard combinations..."
+          for result_dir in allure-results-all/allure-results-*; do
+            if [ -d "$result_dir" ]; then
+              browser_shard=$(basename "$result_dir" | sed 's/allure-results-//')
+              echo "  - Merging results from: $browser_shard"
+              cp -r "$result_dir"/* allure-results/ 2>/dev/null || true
+            fi
+          done
+          echo ""
+          echo "Total test result files merged:"
+          ls -la allure-results/ | wc -l
+          echo ""
+          echo "Sample of merged files:"
+          ls -la allure-results/ | head -20
 
       # Download history from previous GitHub Pages deployment
       - name: Download Allure history
@@ -136,22 +214,6 @@ jobs:
           path: allure-results
           retention-days: ${{ env.RETENTION_DAYS }}
 
-      - name: Upload Playwright report
-        uses: actions/upload-artifact@v4
-        if: always()
-        with:
-          name: playwright-report-${{ env.ARTIFACT_SUFFIX }}
-          path: playwright-report
-          retention-days: ${{ env.RETENTION_DAYS }}
-
-      - name: Upload test videos
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: test-videos-${{ github.run_number }}
-          path: test-results
-          retention-days: 30
-
       # Upload Allure report for GitHub Pages
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
@@ -168,16 +230,26 @@ jobs:
       - name: Add test results summary
         if: always()
         run: |
-          echo "## 📊 Test Results" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Test Results (Browser-Sharded Execution)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
+          echo "**Browsers:** Chromium, Firefox, WebKit" >> $GITHUB_STEP_SUMMARY
+          echo "**Shards per browser:** 3" >> $GITHUB_STEP_SUMMARY
+          echo "**Total parallel runners:** 9 (3 browsers × 3 shards)" >> $GITHUB_STEP_SUMMARY
           echo "**Retention:** ${{ env.RETENTION_DAYS }} days" >> $GITHUB_STEP_SUMMARY
           ${{ github.event.inputs.test_grep && format('echo "**Filter:** `{0}`" >> $GITHUB_STEP_SUMMARY', github.event.inputs.test_grep) || '' }}
           echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### 🌐 Browsers Tested" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟦 **Chromium** (3 shards)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟧 **Firefox** (3 shards)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟪 **WebKit** (3 shards)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- Allure Report, Playwright Report, Test Videos (on failure)" >> $GITHUB_STEP_SUMMARY
+          echo "- **Merged Allure Report** - Combined from all 9 runners" >> $GITHUB_STEP_SUMMARY
+          echo "- **Individual Playwright Reports** - Per browser-shard combination" >> $GITHUB_STEP_SUMMARY
+          echo "- **Test Videos** - From failed tests (if any)" >> $GITHUB_STEP_SUMMARY
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
             echo "### 🌐 Live Report" >> $GITHUB_STEP_SUMMARY
-            echo "View the Allure report at: https://${{ env.PAGES_URL }}/" >> $GITHUB_STEP_SUMMARY
+            echo "View the comprehensive Allure report at: https://${{ env.PAGES_URL }}/" >> $GITHUB_STEP_SUMMARY
           fi
