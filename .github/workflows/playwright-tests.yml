@@ -63,7 +63,7 @@ jobs:
         run: npx playwright install --with-deps
 
   test:
-    name: ${{ matrix.browser }} (Shard ${{ matrix.shard }}/3)
+    name: ${{ matrix.browser }} (No Sharding)
     needs: install
     timeout-minutes: 60
     runs-on: ubuntu-latest
@@ -72,7 +72,6 @@ jobs:
       fail-fast: false
       matrix:
         browser: [chromium, firefox, webkit]
-        shard: [1, 2, 3]  # 3 shards per browser = 9 parallel runners total
 
     steps:
       - uses: actions/checkout@v4
@@ -96,32 +95,32 @@ jobs:
       - name: Install Playwright system dependencies
         run: npx playwright install-deps
 
-      - name: Run Playwright tests (${{ matrix.browser }}, Shard ${{ matrix.shard }}/3)
-        run: npx playwright test --project=${{ matrix.browser }} --shard=${{ matrix.shard }}/3 ${{ github.event.inputs.test_grep && format('--grep "{0}"', github.event.inputs.test_grep) || '' }}
+      - name: Run Playwright tests (${{ matrix.browser }} - All tests)
+        run: npx playwright test --project=${{ matrix.browser }} ${{ github.event.inputs.test_grep && format('--grep "{0}"', github.event.inputs.test_grep) || '' }}
         continue-on-error: true
 
       # Upload test results from this runner
-      - name: Upload Allure results (${{ matrix.browser }}-${{ matrix.shard }})
+      - name: Upload Allure results (${{ matrix.browser }})
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: allure-results-${{ matrix.browser }}-${{ matrix.shard }}
+          name: allure-results-${{ matrix.browser }}
           path: allure-results
           retention-days: 1  # Short retention, will be merged
 
-      - name: Upload Playwright report (${{ matrix.browser }}-${{ matrix.shard }})
+      - name: Upload Playwright report (${{ matrix.browser }})
         uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: playwright-report-${{ matrix.browser }}-${{ matrix.shard }}
+          name: playwright-report-${{ matrix.browser }}
           path: playwright-report
           retention-days: 1  # Short retention, individual reports
 
-      - name: Upload test videos (${{ matrix.browser }}-${{ matrix.shard }})
+      - name: Upload test videos (${{ matrix.browser }})
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: test-videos-${{ matrix.browser }}-${{ matrix.shard }}
+          name: test-videos-${{ matrix.browser }}
           path: test-results
           retention-days: 7  # Keep videos for debugging
 
@@ -162,11 +161,11 @@ jobs:
       - name: Merge Allure results from all runners
         run: |
           mkdir -p allure-results
-          echo "Merging results from all browser-shard combinations..."
+          echo "Merging results from all browsers (no sharding)..."
           for result_dir in allure-results-all/allure-results-*; do
             if [ -d "$result_dir" ]; then
-              browser_shard=$(basename "$result_dir" | sed 's/allure-results-//')
-              echo "  - Merging results from: $browser_shard"
+              browser=$(basename "$result_dir" | sed 's/allure-results-//')
+              echo "  - Merging results from: $browser"
               cp -r "$result_dir"/* allure-results/ 2>/dev/null || true
             fi
           done
@@ -228,23 +227,28 @@ jobs:
       - name: Add test results summary
         if: always()
         run: |
-          echo "## 📊 Test Results (Browser-Sharded Execution)" >> $GITHUB_STEP_SUMMARY
+          echo "## 📊 Test Results (No Sharding - Comparison Branch)" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
           echo "**Browsers:** Chromium, Firefox, WebKit" >> $GITHUB_STEP_SUMMARY
-          echo "**Shards per browser:** 3" >> $GITHUB_STEP_SUMMARY
-          echo "**Total parallel runners:** 9 (3 browsers × 3 shards)" >> $GITHUB_STEP_SUMMARY
+          echo "**Sharding:** DISABLED (for performance comparison)" >> $GITHUB_STEP_SUMMARY
+          echo "**Total parallel runners:** 3 (one per browser, no sharding)" >> $GITHUB_STEP_SUMMARY
           echo "**Retention:** ${{ env.RETENTION_DAYS }} days" >> $GITHUB_STEP_SUMMARY
           ${{ github.event.inputs.test_grep && format('echo "**Filter:** `{0}`" >> $GITHUB_STEP_SUMMARY', github.event.inputs.test_grep) || '' }}
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 🌐 Browsers Tested" >> $GITHUB_STEP_SUMMARY
-          echo "- 🟦 **Chromium** (3 shards)" >> $GITHUB_STEP_SUMMARY
-          echo "- 🟧 **Firefox** (3 shards)" >> $GITHUB_STEP_SUMMARY
-          echo "- 🟪 **WebKit** (3 shards)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟦 **Chromium** (all tests)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟧 **Firefox** (all tests)" >> $GITHUB_STEP_SUMMARY
+          echo "- 🟪 **WebKit** (all tests)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### ⏱️ Performance Note" >> $GITHUB_STEP_SUMMARY
+          echo "This branch runs WITHOUT sharding for comparison." >> $GITHUB_STEP_SUMMARY
+          echo "Each browser runs ALL tests sequentially." >> $GITHUB_STEP_SUMMARY
+          echo "Expected to be ~3x slower than the sharded main branch." >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- **Merged Allure Report** - Combined from all 9 runners" >> $GITHUB_STEP_SUMMARY
-          echo "- **Individual Playwright Reports** - Per browser-shard combination" >> $GITHUB_STEP_SUMMARY
+          echo "- **Merged Allure Report** - Combined from 3 browser runners" >> $GITHUB_STEP_SUMMARY
+          echo "- **Individual Playwright Reports** - Per browser" >> $GITHUB_STEP_SUMMARY
           echo "- **Test Videos** - From failed tests (if any)" >> $GITHUB_STEP_SUMMARY
           if [ "${{ github.event_name }}" != "pull_request" ]; then
             echo "" >> $GITHUB_STEP_SUMMARY
