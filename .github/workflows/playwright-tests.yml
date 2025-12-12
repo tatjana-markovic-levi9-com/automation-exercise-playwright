@@ -26,8 +26,6 @@ env:
   RETENTION_DAYS: ${{ github.event_name == 'pull_request' && 14 || 30 }}
   ARTIFACT_SUFFIX: ${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
   PAGES_URL: ${{ github.repository_owner }}.github.io/${{ github.event.repository.name }}
-  SHARDS_PER_BROWSER: 3  
-  NUMBER_OF_BROWSERS: 3
   
 jobs:
   install:
@@ -265,48 +263,3 @@ jobs:
         id: deployment
         if: always() && github.event_name != 'pull_request'
         uses: actions/deploy-pages@v4
-
-      - name: Add test results summary
-        if: always()
-        run: |
-          echo "## 📊 Test Results (Browser-Sharded Execution)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Event:** ${{ github.event_name }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Browsers:** Chromium, Firefox, WebKit" >> $GITHUB_STEP_SUMMARY
-          echo "**Shards per browser:** ${{ env.SHARDS_PER_BROWSER }}" >> $GITHUB_STEP_SUMMARY
-          echo "**Total parallel runners:** $((${{ env.SHARDS_PER_BROWSER }} * ${{ env.NUMBER_OF_BROWSERS }}))" >> $GITHUB_STEP_SUMMARY
-          echo "**Retention:** ${{ env.RETENTION_DAYS }} days" >> $GITHUB_STEP_SUMMARY
-          ${{ github.event.inputs.test_grep && format('echo "**Filter:** `{0}`" >> $GITHUB_STEP_SUMMARY', github.event.inputs.test_grep) || '' }}
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 🌐 Browsers Tested" >> $GITHUB_STEP_SUMMARY
-          echo "- 🟦 **Chromium** (${{ env.SHARDS_PER_BROWSER }} shards)" >> $GITHUB_STEP_SUMMARY
-          echo "- 🟧 **Firefox** (${{ env.SHARDS_PER_BROWSER }} shards)" >> $GITHUB_STEP_SUMMARY
-          echo "- 🟪 **WebKit** (${{ env.SHARDS_PER_BROWSER }} shards)" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          
-          # Check if tests actually ran
-          if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
-            result_files=$(ls -1 allure-results/*.json 2>/dev/null | wc -l)
-            if [ "$result_files" -gt 1 ]; then
-              echo "### ✅ Test Execution" >> $GITHUB_STEP_SUMMARY
-              echo "Successfully merged results from $((${{ env.SHARDS_PER_BROWSER }} * ${{ env.NUMBER_OF_BROWSERS }})) runners" >> $GITHUB_STEP_SUMMARY
-              echo "Total result files: $result_files" >> $GITHUB_STEP_SUMMARY
-            else
-              echo "### ⚠️ Test Execution" >> $GITHUB_STEP_SUMMARY
-              echo "No test results were generated. Tests may have failed to run." >> $GITHUB_STEP_SUMMARY
-            fi
-          else
-            echo "### ⚠️ Test Execution" >> $GITHUB_STEP_SUMMARY
-            echo "No test results found. All test jobs may have failed." >> $GITHUB_STEP_SUMMARY
-          fi
-          
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "### 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
-          echo "- **Merged Allure Report** - Combined from all $((${{ env.SHARDS_PER_BROWSER }} * ${{ env.NUMBER_OF_BROWSERS }})) runners" >> $GITHUB_STEP_SUMMARY
-          echo "- **Individual Playwright Reports** - Per browser-shard combination" >> $GITHUB_STEP_SUMMARY
-          echo "- **Test Videos** - From failed tests (if any)" >> $GITHUB_STEP_SUMMARY
-          if [ "${{ github.event_name }}" != "pull_request" ]; then
-            echo "" >> $GITHUB_STEP_SUMMARY
-            echo "### 🌐 Live Report" >> $GITHUB_STEP_SUMMARY
-            echo "View the comprehensive Allure report at: https://${{ env.PAGES_URL }}/" >> $GITHUB_STEP_SUMMARY
-          fi
