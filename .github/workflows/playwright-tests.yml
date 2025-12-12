@@ -106,27 +106,30 @@ jobs:
       # Upload test results from this runner
       - name: Upload Allure results (${{ matrix.browser }}-${{ matrix.shard }})
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && hashFiles('allure-results/**/*') != ''
         with:
           name: allure-results-${{ matrix.browser }}-${{ matrix.shard }}
           path: allure-results
-          retention-days: 1  # Short retention, will be merged
+          retention-days: 1
+          if-no-files-found: warn
 
       - name: Upload Playwright report (${{ matrix.browser }}-${{ matrix.shard }})
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && hashFiles('playwright-report/**/*') != ''
         with:
           name: playwright-report-${{ matrix.browser }}-${{ matrix.shard }}
           path: playwright-report
-          retention-days: 1  # Short retention, individual reports
+          retention-days: 1
+          if-no-files-found: warn
 
       - name: Upload test videos (${{ matrix.browser }}-${{ matrix.shard }})
         uses: actions/upload-artifact@v4
-        if: failure()
+        if: failure() && hashFiles('test-results/**/*') != ''
         with:
           name: test-videos-${{ matrix.browser }}-${{ matrix.shard }}
           path: test-results
-          retention-days: 7  # Keep videos for debugging
+          retention-days: 7
+          if-no-files-found: ignore
 
   merge-reports:
     name: Merge Reports and Deploy
@@ -156,6 +159,7 @@ jobs:
       # Download all Allure results from all browser-shard combinations
       - name: Download Allure results from all runners
         uses: actions/download-artifact@v4
+        continue-on-error: true
         with:
           pattern: allure-results-*
           path: allure-results-all
@@ -165,16 +169,31 @@ jobs:
       - name: Merge Allure results from all runners
         run: |
           mkdir -p allure-results
+          
+          # Check if any artifacts were downloaded
+          if [ ! -d "allure-results-all" ] || [ -z "$(ls -A allure-results-all 2>/dev/null)" ]; then
+            echo "⚠️  Warning: No Allure results found to merge"
+            echo "This might happen if all test jobs failed before generating results"
+            # Create a placeholder to allow report generation
+            echo '{"name":"No Tests Run","status":"broken","stage":"finished"}' > allure-results/empty-result.json
+            exit 0
+          fi
+          
           echo "Merging results from all browser-shard combinations..."
+          result_count=0
           for result_dir in allure-results-all/allure-results-*; do
             if [ -d "$result_dir" ]; then
               browser_shard=$(basename "$result_dir" | sed 's/allure-results-//')
               echo "  - Merging results from: $browser_shard"
-              cp -r "$result_dir"/* allure-results/ 2>/dev/null || true
+              if cp -r "$result_dir"/* allure-results/ 2>/dev/null; then
+                result_count=$((result_count + 1))
+              fi
             fi
           done
+          
           echo ""
-          echo "Total test result files merged:"
+          echo "✅ Merged results from $result_count shard(s)"
+          echo "Total test result files:"
           ls -la allure-results/ | wc -l
           echo ""
           echo "Sample of merged files:"
@@ -196,24 +215,43 @@ jobs:
 
       - name: Generate Allure Report
         if: always()
-        run: npx allure generate allure-results -o allure-report --clean
+        run: |
+          # Ensure we have results directory
+          if [ ! -d "allure-results" ] || [ -z "$(ls -A allure-results 2>/dev/null)" ]; then
+            echo "⚠️  Warning: No test results found, creating placeholder"
+            mkdir -p allure-results
+            echo '{"name":"No Tests Executed","status":"broken","stage":"finished"}' > allure-results/empty-result.json
+          fi
+          
+          echo "Generating Allure report..."
+          npx allure generate allure-results -o allure-report --clean
+          
+          # Verify report was created
+          if [ -f "allure-report/index.html" ]; then
+            echo "✅ Allure report generated successfully"
+          else
+            echo "❌ Failed to generate Allure report"
+            exit 1
+          fi
 
       # Upload artifacts
       - name: Upload Allure report
         uses: actions/upload-artifact@v4
-        if: always()
+        if: always() && hashFiles('allure-report/**/*') != ''
         with:
           name: allure-report-${{ env.ARTIFACT_SUFFIX }}
           path: allure-report
           retention-days: ${{ env.RETENTION_DAYS }}
+          if-no-files-found: warn
 
       - name: Upload Allure results
         uses: actions/upload-artifact@v4
-        if: always() && github.event_name == 'push'
+        if: always() && github.event_name == 'push' && hashFiles('allure-results/**/*') != ''
         with:
           name: allure-results-${{ env.ARTIFACT_SUFFIX }}
           path: allure-results
           retention-days: ${{ env.RETENTION_DAYS }}
+          if-no-files-found: ignore
 
       # Upload Allure report for GitHub Pages
       - name: Upload Pages artifact
@@ -244,6 +282,24 @@ jobs:
           echo "- 🟦 **Chromium** (${{ env.SHARDS_PER_BROWSER }} shards)" >> $GITHUB_STEP_SUMMARY
           echo "- 🟧 **Firefox** (${{ env.SHARDS_PER_BROWSER }} shards)" >> $GITHUB_STEP_SUMMARY
           echo "- 🟪 **WebKit** (${{ env.SHARDS_PER_BROWSER }} shards)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          
+          # Check if tests actually ran
+          if [ -d "allure-results" ] && [ -n "$(ls -A allure-results 2>/dev/null)" ]; then
+            result_files=$(ls -1 allure-results/*.json 2>/dev/null | wc -l)
+            if [ "$result_files" -gt 1 ]; then
+              echo "### ✅ Test Execution" >> $GITHUB_STEP_SUMMARY
+              echo "Successfully merged results from $((${{ env.SHARDS_PER_BROWSER }} * ${{ env.NUMBER_OF_BROWSERS }})) runners" >> $GITHUB_STEP_SUMMARY
+              echo "Total result files: $result_files" >> $GITHUB_STEP_SUMMARY
+            else
+              echo "### ⚠️ Test Execution" >> $GITHUB_STEP_SUMMARY
+              echo "No test results were generated. Tests may have failed to run." >> $GITHUB_STEP_SUMMARY
+            fi
+          else
+            echo "### ⚠️ Test Execution" >> $GITHUB_STEP_SUMMARY
+            echo "No test results found. All test jobs may have failed." >> $GITHUB_STEP_SUMMARY
+          fi
+          
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "### 📦 Artifacts" >> $GITHUB_STEP_SUMMARY
           echo "- **Merged Allure Report** - Combined from all $((${{ env.SHARDS_PER_BROWSER }} * ${{ env.NUMBER_OF_BROWSERS }})) runners" >> $GITHUB_STEP_SUMMARY
